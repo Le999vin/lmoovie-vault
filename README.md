@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Movie Vault
 
-## Getting Started
+Next.js (App Router) movie vault with TMDB search, Postgres + Drizzle, NextAuth, Tailwind/shadcn, and a LangChain agent that uses OpenRouter (OpenAI-compatible) to read/write your vault data.
 
-First, run the development server:
+## Getting started
+1) Copy envs  
+`cp .env.example .env.local`  
+Set at minimum: `DATABASE_URL`, `TMDB_ACCESS_TOKEN`, `OPENROUTER_API_KEY`, `NEXTAUTH_SECRET`.  
+Optional: `OPENROUTER_MODEL=mistralai/devstral-2512:free`, `OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2) Install deps  
+`npm install`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3) Start Postgres (Docker)  
+`docker-compose up -d`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4) Migrate + seed  
+`npm run db:migrate`  
+`npm run db:seed`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5) Dev server  
+`npm run dev` (uses webpack to avoid Turbopack source-map noise; run `next dev --turbo` manually if you want Turbopack)
 
-## Learn More
+6) AI sanity check  
+`curl -X GET http://localhost:3000/api/ai/ping`
 
-To learn more about Next.js, take a look at the following resources:
+## Commands
+- `npm run dev` - start app (webpack dev)
+- `npm run clean` - remove .next cache
+- `npm run build` / `npm start` - production build/serve
+- `npm run lint` - ESLint
+- `npm run typecheck` - TypeScript check
+- `npm test` - Vitest (needs DB + env)
+- `npm run db:generate` - regen migrations from schema
+- `npm run db:migrate` - apply migrations
+- `npm run db:seed` - seed demo data
+- `npm run db:studio` - Drizzle studio
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
+- `DATABASE_URL` - Postgres connection
+- `TMDB_BASE_URL` (default `https://api.themoviedb.org/3`)
+- `TMDB_ACCESS_TOKEN` - TMDB v4 bearer token
+- `OPENROUTER_API_KEY` - server-only
+- `OPENROUTER_MODEL` - e.g. `meta-llama/llama-3.1-8b-instruct:free`
+- `OPENROUTER_BASE_URL` - default `https://openrouter.ai/api/v1`
+- `NEXTAUTH_SECRET`, `NEXTAUTH_URL`
+- `SINGLE_USER_EMAIL`/`SINGLE_USER_NAME`, optional `DEV_AUTH_PASSWORD`, `NEXT_PUBLIC_SINGLE_USER_EMAIL`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project structure
+- `app/(site)/*` - pages (home, discover, watchlist, collections, ai) + layout
+- `app/movie/[tmdbId]` - detail page with actions
+- `app/api/*` - TMDB proxy, auth, watchlist/ratings/notes/collections, AI chat/ping
+- `lib/db/*` - Drizzle client, schema, queries
+- `lib/tmdb/*` - TMDB fetchers, sync helper
+- `lib/ai/llm.ts` - OpenRouter LLM factory
+- `components/*` - UI (shadcn), layout/nav, movie/action widgets, AI chat
+- `scripts/seed.ts` - seed demo data
+- `drizzle/*` - migrations
+- `tests/*` - minimal DB + API route tests (Vitest)
 
-## Deploy on Vercel
+## AI endpoints
+- `GET /api/ai/ping` - quick OpenRouter sanity check
+- `POST /api/ai/chat` - body `{ messages: [{ role, content }] }`, returns `{ text }` (requires session + OpenRouter env)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+Configure env vars (TMDB, OpenRouter, NextAuth, Postgres). Ensure Postgres is reachable and `DATABASE_URL` points to it. No secrets are exposed to the client.
